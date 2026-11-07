@@ -1,16 +1,13 @@
 import { useRef, useState } from 'react';
 
-const samples = import.meta.glob('../csv/*.csv', { query: '?url', import: 'default', eager: true }) as Record<string, string>;
-export const SAMPLE_FILES = Object.entries(samples).map(([path, url]) => ({ name: path.split('/').pop()!, url }));
 
 interface Props {
   onFile: (file: File) => void;
-  onSample: (name: string, url: string) => void;
   compact?: boolean;
 }
 
 /** Botón para cargar CSV + zona para soltar archivos. */
-export function FileDrop({ onFile, onSample, compact }: Props) {
+export function FileDrop({ onFile, compact }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
@@ -56,14 +53,6 @@ export function FileDrop({ onFile, onSample, compact }: Props) {
       <h2>Drag a telemetry file here</h2>
       <p className="muted">CSV, TSV, TXT, LOG, JSON, Excel (.xlsx), ZIP or .gz · Expected columns: time_s, battery_volts, fl_rpm, fl_current_a, fl_current_rate_aps, …</p>
       <button className="primary" onClick={() => inputRef.current?.click()}>Choose file</button>
-      {SAMPLE_FILES.length > 0 && (
-        <div className="samples">
-          <span className="muted">or try an example:</span>
-          {SAMPLE_FILES.map((s) => (
-            <button key={s.name} className="ghost" onClick={() => onSample(s.name, s.url)}>{s.name}</button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

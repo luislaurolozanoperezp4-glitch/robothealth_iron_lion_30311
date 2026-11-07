@@ -51,7 +51,6 @@ export default function App() {
   }, []);
 
   const onFile = (f: File) => load(f.name, () => f.arrayBuffer());
-  const onSample = (name: string, url: string) => load(name, () => fetch(url).then((r) => r.arrayBuffer()));
 
   const toggleMetric = (motorId: string, m: MetricId) =>
     setMetrics((prev) => {
@@ -126,7 +125,7 @@ export default function App() {
               Overview <kbd>A</kbd>
             </button>
           )}
-          {tlm && <FileDrop compact onFile={onFile} onSample={onSample} />}
+          {tlm && <FileDrop compact onFile={onFile} />}
         </div>
       </header>
 
@@ -139,7 +138,7 @@ export default function App() {
       )}
 
       {!tlm ? (
-        <FileDrop onFile={onFile} onSample={onSample} />
+        <FileDrop onFile={onFile} />
       ) : (
         <main className="dashboard">
           <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} onExpand={() => setExpanded('battery')} iron={iron} />

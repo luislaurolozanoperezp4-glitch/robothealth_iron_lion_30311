@@ -11,7 +11,7 @@ npm run dev        # abre http://localhost:5173
 npm run build      # genera la versión estática en dist/
 ```
 
-Carga un archivo con el botón **Load file**, arrastrándolo a la página o con uno de los ejemplos de `src/csv`.
+Carga un archivo con el botón **Load file** o arrastrándolo a la página. En `src/csv` hay archivos de ejemplo para probar.
 
 ### Funciones
 

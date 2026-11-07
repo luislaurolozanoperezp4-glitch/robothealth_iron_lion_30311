@@ -62,7 +62,6 @@ button.ghost:hover:not(:disabled) { background: var(--panel-2); }
 .dropzone.over { border-color: var(--accent); background: rgba(245, 158, 11, 0.06); }
 .dropzone h2 { color: var(--text); font-size: 18px; }
 .dropzone p { margin: 0 0 6px; font-size: 13px; }
-.samples { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 
 /* Tablero */
 .dashboard { display: flex; flex-direction: column; gap: 14px; }
