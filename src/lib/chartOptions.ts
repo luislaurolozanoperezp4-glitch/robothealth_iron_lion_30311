@@ -1,6 +1,6 @@
 // Piezas compartidas de configuración de uPlot (tema oscuro, ejes por unidad, línea de límite).
 import type uPlot from 'uplot';
-import { BATTERY_LIMIT_V, LIMIT_COLOR } from './channels';
+import { BATTERY_LIMIT_V, LIMIT_COLOR, type RpmTarget } from './channels';
 
 const AXIS_TEXT = '#94a3b8';
 const GRID = 'rgba(148, 163, 184, 0.10)';
@@ -86,7 +86,7 @@ export function batteryLimitPlugin(scaleKey: string): uPlot.Plugin {
           ctx.fillStyle = LIMIT_COLOR;
           ctx.textAlign = 'right';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(`Límite ${BATTERY_LIMIT_V} V`, left + width - 6 * dpr, y - 3 * dpr);
+          ctx.fillText(`Limit ${BATTERY_LIMIT_V} V`, left + width - 6 * dpr, y - 3 * dpr);
           ctx.restore();
         },
       ],
@@ -113,3 +113,61 @@ export function batteryStroke(okColor: string, scaleKey: string) {
 
 export const fmtValue = (digits: number) => (_u: uPlot, v: number | null) =>
   v == null ? '—' : v.toFixed(digits);
+
+/** Escala de RPM que siempre incluye los rangos objetivo, para que las líneas sean visibles. */
+export function rpmTargetRange(targets: RpmTarget[]): uPlot.Range.Function {
+  return (_u, min, max) => {
+    let lo = min ?? 0;
+    let hi = max ?? 0;
+    for (const t of targets) {
+      lo = Math.min(lo, t.min);
+      hi = Math.max(hi, t.max);
+    }
+    const pad = Math.max((hi - lo) * 0.08, 5);
+    return [Math.max(0, lo - pad), hi + pad];
+  };
+}
+
+/** Dibuja dos líneas (mínimo y máximo) por cada rango objetivo sobre la escala de RPM. */
+export function rpmTargetsPlugin(scaleKey: string, targets: RpmTarget[]): uPlot.Plugin {
+  return {
+    hooks: {
+      draw: [
+        (u) => {
+          if (!u.scales[scaleKey] || u.scales[scaleKey].min == null) return;
+          const ctx = u.ctx;
+          const { left, top, width, height } = u.bbox;
+          const dpr = devicePixelRatio || 1;
+          ctx.save();
+          ctx.lineWidth = 1.5 * dpr;
+          ctx.setLineDash([6 * dpr, 4 * dpr]);
+          ctx.font = `700 ${7 * dpr}px Inter, system-ui, sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.textBaseline = 'bottom';
+          for (const t of targets) {
+            for (const v of [t.min, t.max]) {
+              const y = Math.round(u.valToPos(v, scaleKey, true));
+              if (y < top || y > top + height) continue;
+              ctx.strokeStyle = t.color;
+              ctx.fillStyle = t.color;
+              ctx.beginPath();
+              ctx.moveTo(left, y);
+              ctx.lineTo(left + width, y);
+              ctx.stroke();
+              const text = `${t.name} ${v}`;
+              const pad = 2 * dpr;
+              const tw = ctx.measureText(text).width;
+              const tx = left + width - 4 * dpr;
+              const ty = y - 2 * dpr;
+              ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+              ctx.fillRect(tx - tw - pad, ty - 7 * dpr - pad, tw + 2 * pad, 7 * dpr + 2 * pad);
+              ctx.fillStyle = t.color;
+              ctx.fillText(text, tx, ty);
+            }
+          }
+          ctx.restore();
+        },
+      ],
+    },
+  };
+}

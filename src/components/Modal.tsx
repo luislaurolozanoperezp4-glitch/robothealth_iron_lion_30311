@@ -18,8 +18,8 @@ export function Modal({ onClose, children, footer, label }: Props) {
   return (
     <div className="modal" role="dialog" aria-modal="true" aria-label={label}>
       <div className="modal-bar">
-        <span className="muted">{label} · <kbd>Esc</kbd> para cerrar</span>
-        <button className="ghost" onClick={onClose} aria-label="Cerrar">✕ Cerrar</button>
+        <span className="muted">{label} · <kbd>Esc</kbd> to close</span>
+        <button className="ghost" onClick={onClose} aria-label="Close">✕ Close</button>
       </div>
       <div className="modal-body">{children}</div>
       {footer && <div className="modal-foot">{footer}</div>}

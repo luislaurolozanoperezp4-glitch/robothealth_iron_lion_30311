@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { ALL_MOTORS, CAROUSEL_PAGES, METRICS, type MetricId } from './lib/channels';
-import { formatTime, parseTelemetryCsv, type Telemetry, type TimeRange } from './lib/data';
+import { formatTime, type Telemetry, type TimeRange } from './lib/data';
+import { loadTelemetryFile } from './lib/formats';
 import { BatteryChart } from './components/BatteryChart';
 import { MotorChart } from './components/MotorChart';
 import { OverviewChart, type OverviewState } from './components/OverviewChart';
@@ -20,6 +21,12 @@ export default function App() {
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null); // 'battery' o id de motor
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [iron, setIron] = useState(false); // tema Iron Health (negro y naranja)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('theme-iron', iron);
+    return () => document.documentElement.classList.remove('theme-iron');
+  }, [iron]);
   const [overview, setOverview] = useState<OverviewState>({
     groups: ['battery', ...ALL_MOTORS.map((m) => m.id)],
     metrics: [...ALL_METRICS],
@@ -28,12 +35,11 @@ export default function App() {
   // Las gráficas usan el rango diferido para que la barra de tiempo se sienta fluida con archivos grandes.
   const chartRange = useDeferredValue(range);
 
-  const load = useCallback(async (name: string, getText: () => Promise<string>) => {
+  const load = useCallback(async (name: string, getData: () => Promise<ArrayBuffer>) => {
     setLoading(true);
     setError(null);
     try {
-      const text = await getText();
-      const t = parseTelemetryCsv(text, name);
+      const t = await loadTelemetryFile(name, await getData());
       setTlm(t);
       setRange([t.tMin, t.tMax]);
       setExpanded(null);
@@ -44,8 +50,8 @@ export default function App() {
     }
   }, []);
 
-  const onFile = (f: File) => load(f.name, () => f.text());
-  const onSample = (name: string, url: string) => load(name, () => fetch(url).then((r) => r.text()));
+  const onFile = (f: File) => load(f.name, () => f.arrayBuffer());
+  const onSample = (name: string, url: string) => load(name, () => fetch(url).then((r) => r.arrayBuffer()));
 
   const toggleMetric = (motorId: string, m: MetricId) =>
     setMetrics((prev) => {
@@ -61,6 +67,11 @@ export default function App() {
       const t = e.target as HTMLElement;
       if (t.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        setIron((v) => !v);
+        return;
+      }
       if (e.key === 'Escape') {
         if (expanded) setExpanded(null);
         else setOverviewOpen(false);
@@ -82,51 +93,60 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [tlm, expanded, overviewOpen]);
 
-  const timebar = tlm && <TimeBar tlm={tlm} range={range} onChange={setRange} />;
+  const timebar = tlm && <TimeBar tlm={tlm} range={range} onChange={setRange} iron={iron} />;
   const expandedMotor = ALL_MOTORS.find((m) => m.id === expanded);
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden>
-            <polyline points="4,20 10,20 13,10 18,24 21,15 28,15" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-          </svg>
+          {iron ? (
+            <img className="brand-logo" src={`${import.meta.env.BASE_URL}iron-health-logo.jpg`} alt="Logo Iron Lion" />
+          ) : (
+            <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden>
+              <polyline points="4,20 10,20 13,10 18,24 21,15 28,15" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+            </svg>
+          )}
           <div>
-            <h1>RobotHealth</h1>
-            <span className="muted">Iron Lion 30311 · telemetría de motores</span>
+            <h1>{iron ? 'Iron Health' : 'RobotHealth'}</h1>
+            <span className="muted">Iron Lion 30311 · motor telemetry</span>
           </div>
         </div>
         {tlm && (
           <div className="fileinfo">
             <strong title={tlm.fileName}>{tlm.fileName}</strong>
             <span className="muted">
-              {tlm.rows.toLocaleString('es-MX')} muestras · {formatTime(tlm.tMax - tlm.tMin)}
+              {tlm.rows.toLocaleString('en-US')} samples ·{formatTime(tlm.tMax - tlm.tMin)}
             </span>
           </div>
         )}
         <div className="topbar-actions">
           {tlm && (
-            <button className="ghost" onClick={() => setOverviewOpen(true)} title="Atajo: tecla A">
-              Vista general <kbd>A</kbd>
+            <button className="ghost" onClick={() => setOverviewOpen(true)} title="Shortcut: A key">
+              Overview <kbd>A</kbd>
             </button>
           )}
           {tlm && <FileDrop compact onFile={onFile} onSample={onSample} />}
         </div>
       </header>
 
-      {error && <div className="error" role="alert">No se pudo leer el archivo: {error}</div>}
-      {loading && <div className="loading">Cargando…</div>}
+      {error && <div className="error" role="alert">Could not read the file: {error}</div>}
+      {loading && <div className="loading">Loading…</div>}
+      {tlm && tlm.notes.length > 0 && !error && (
+        <div className="notice" role="status">
+          {tlm.notes.map((n) => <div key={n}>{n}</div>)}
+        </div>
+      )}
 
       {!tlm ? (
         <FileDrop onFile={onFile} onSample={onSample} />
       ) : (
         <main className="dashboard">
-          <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} onExpand={() => setExpanded('battery')} />
+          <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} onExpand={() => setExpanded('battery')} iron={iron} />
 
           <section className="carousel">
             <div className="carousel-head">
-              <button className="arrow" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Anterior">‹</button>
+              <button className="arrow" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous">‹</button>
               <div className="carousel-title">
                 <strong>{CAROUSEL_PAGES[page].title}</strong>
                 <div className="dots">
@@ -135,7 +155,7 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <button className="arrow" disabled={page === CAROUSEL_PAGES.length - 1} onClick={() => setPage(page + 1)} aria-label="Siguiente">›</button>
+              <button className="arrow" disabled={page === CAROUSEL_PAGES.length - 1} onClick={() => setPage(page + 1)} aria-label="Next">›</button>
             </div>
             <div className="carousel-viewport">
               <div className="carousel-track" style={{ transform: `translateX(-${page * 100}%)` }}>
@@ -151,7 +171,7 @@ export default function App() {
                         range={chartRange}
                         onSelectRange={selectRange}
                         onExpand={() => setExpanded(motor.id)}
-                      />
+                        iron={iron}                      />
                     ))}
                   </div>
                 ))}
@@ -161,14 +181,14 @@ export default function App() {
 
           <div className="timebar-dock">{timebar}</div>
           <p className="hint muted">
-            Doble clic en una gráfica para verla en pantalla completa · <kbd>A</kbd> vista general · <kbd>←</kbd> <kbd>→</kbd> carrusel
+            Double-click a chart for full screen · <kbd>A</kbd> overview · <kbd>←</kbd> <kbd>→</kbd> carousel
           </p>
         </main>
       )}
 
       {tlm && expanded === 'battery' && (
-        <Modal label="Batería" onClose={() => setExpanded(null)} footer={timebar}>
-          <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} expanded />
+        <Modal label="Battery" onClose={() => setExpanded(null)} footer={timebar}>
+          <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} expanded iron={iron} />
         </Modal>
       )}
       {tlm && expandedMotor && (
@@ -181,12 +201,12 @@ export default function App() {
             range={chartRange}
             onSelectRange={selectRange}
             expanded
-          />
+            iron={iron}          />
         </Modal>
       )}
       {tlm && overviewOpen && !expanded && (
-        <Modal label="Vista general" onClose={() => setOverviewOpen(false)} footer={timebar}>
-          <OverviewChart tlm={tlm} state={overview} onChange={setOverview} range={chartRange} onSelectRange={selectRange} />
+        <Modal label="Overview" onClose={() => setOverviewOpen(false)} footer={timebar}>
+          <OverviewChart tlm={tlm} state={overview} onChange={setOverview} range={chartRange} onSelectRange={selectRange} iron={iron} />
         </Modal>
       )}
     </div>

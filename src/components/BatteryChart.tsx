@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type uPlot from 'uplot';
-import { BATTERY_COLOR, BATTERY_COLUMN, BATTERY_LIMIT_V } from '../lib/channels';
+import { BATTERY_COLOR, BATTERY_COLUMN, BATTERY_LIMIT_V, IRON_BATTERY_COLOR } from '../lib/channels';
 import { buildAligned, formatTime, rangeIndices, type Telemetry, type TimeRange } from '../lib/data';
 import { batteryLimitPlugin, batteryRange, batteryStroke, fmtValue, unitAxis, xAxis, xScale } from '../lib/chartOptions';
 import { UPlotChart } from './UPlotChart';
@@ -11,21 +11,23 @@ interface Props {
   onSelectRange: (r: TimeRange) => void;
   onExpand?: () => void;
   expanded?: boolean;
+  iron?: boolean;
 }
 
-export function BatteryChart({ tlm, range, onSelectRange, onExpand, expanded }: Props) {
+export function BatteryChart({ tlm, range, onSelectRange, onExpand, expanded, iron }: Props) {
   const hasBattery = BATTERY_COLUMN in tlm.cols;
+  const color = iron ? IRON_BATTERY_COLOR : BATTERY_COLOR;
 
   const options = useMemo<Omit<uPlot.Options, 'width' | 'height'>>(
     () => ({
       scales: { x: xScale, v: { range: batteryRange } },
-      axes: [xAxis(), unitAxis('v', 'V', BATTERY_COLOR, 3, true)],
+      axes: [xAxis(), unitAxis('v', 'V', color, 3, true)],
       series: [
-        { label: 'Tiempo', value: (_u, v) => (v == null ? '—' : `${v.toFixed(2)} s`) },
+        { label: 'Time', value: (_u, v) => (v == null ? '—' : `${v.toFixed(2)} s`) },
         {
-          label: 'Batería (V)',
+          label: 'Battery (V)',
           scale: 'v',
-          stroke: batteryStroke(BATTERY_COLOR, 'v'),
+          stroke: batteryStroke(color, 'v'),
           fill: 'rgba(34, 197, 94, 0.06)',
           width: 2,
           value: fmtValue(2),
@@ -35,7 +37,7 @@ export function BatteryChart({ tlm, range, onSelectRange, onExpand, expanded }: 
       plugins: [batteryLimitPlugin('v')],
       legend: { show: true, live: true },
     }),
-    [],
+    [color],
   );
 
   const data = useMemo(() => buildAligned(tlm, [BATTERY_COLUMN], range), [tlm, range]);
@@ -64,24 +66,24 @@ export function BatteryChart({ tlm, range, onSelectRange, onExpand, expanded }: 
     <section
       className={`card battery-card${expanded ? ' expanded' : ''}`}
       onDoubleClick={onExpand}
-      title={onExpand ? 'Doble clic para pantalla completa' : undefined}
+      title={onExpand ? 'Double-click for full screen' : undefined}
     >
       <header className="card-head">
         <div className="card-title">
-          <span className="badge" style={{ background: BATTERY_COLOR }} />
-          <strong>Batería</strong>
+          <span className="badge" style={{ background: color }} />
+          <strong>Battery</strong>
           <span className={`pill ${healthy ? 'ok' : 'bad'}`}>
-            {healthy ? 'Saludable' : `Bajo ${BATTERY_LIMIT_V} V`}
+            {healthy ? 'Healthy' : `Below ${BATTERY_LIMIT_V} V`}
           </span>
         </div>
         {stats && (
           <dl className="stats">
-            <div><dt>Actual</dt><dd>{stats.last.toFixed(2)} V</dd></div>
-            <div><dt>Mín</dt><dd className={stats.min < BATTERY_LIMIT_V ? 'bad' : ''}>{stats.min.toFixed(2)} V</dd></div>
-            <div><dt>Prom</dt><dd>{stats.avg.toFixed(2)} V</dd></div>
-            <div><dt>Máx</dt><dd>{stats.max.toFixed(2)} V</dd></div>
+            <div><dt>Current</dt><dd>{stats.last.toFixed(2)} V</dd></div>
+            <div><dt>Min</dt><dd className={stats.min < BATTERY_LIMIT_V ? 'bad' : ''}>{stats.min.toFixed(2)} V</dd></div>
+            <div><dt>Avg</dt><dd>{stats.avg.toFixed(2)} V</dd></div>
+            <div><dt>Max</dt><dd>{stats.max.toFixed(2)} V</dd></div>
             <div>
-              <dt>Bajo límite</dt>
+              <dt>Below limit</dt>
               <dd className={stats.below > 0 ? 'bad' : ''}>{formatTime(stats.below)} ({stats.pct.toFixed(1)}%)</dd>
             </div>
           </dl>
@@ -91,7 +93,7 @@ export function BatteryChart({ tlm, range, onSelectRange, onExpand, expanded }: 
         {hasBattery ? (
           <UPlotChart options={options} optionsKey={`bat|${expanded}`} data={data} onSelectRange={onSelectRange} />
         ) : (
-          <div className="empty-chart">El CSV no tiene la columna “{BATTERY_COLUMN}”</div>
+          <div className="empty-chart">The CSV has no column “{BATTERY_COLUMN}”</div>
         )}
       </div>
     </section>

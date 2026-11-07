@@ -168,6 +168,28 @@ button.ghost:hover:not(:disabled) { background: var(--panel-2); }
 .numfield input:focus { outline: none; border-color: var(--accent); }
 .hint { text-align: center; font-size: 12px; margin: 0; }
 
+/* Tema Iron Health: negro y naranja */
+:root.theme-iron {
+  --bg: #000000;
+  --panel: #0c0c0c;
+  --panel-2: #1a1a1a;
+  --border: #3a3a3a;
+  --text: #f5f5f5;
+  --muted: #9ca3af;
+  --accent: #ff5500;
+  color-scheme: dark;
+}
+:root.theme-iron body { background: #000000; }
+:root.theme-iron h1 { color: var(--accent); }
+:root.theme-iron .card-head strong, :root.theme-iron .carousel-title strong { color: #ffffff; }
+:root.theme-iron .card { box-shadow: inset 0 1px 0 rgba(255, 85, 0, 0.25); }
+:root.theme-iron .track-window { background: rgba(255, 85, 0, 0.14); }
+:root.theme-iron .dot.on, :root.theme-iron .handle { background: var(--accent); }
+:root.theme-iron button.primary { color: #000000; }
+.brand-logo { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.target-toggle { padding: 2px 8px; font-size: 11px; line-height: 16px; flex: none; }
+.target-toggle.on { border-color: var(--accent); }
+
 /* Pantalla completa */
 .modal {
   position: fixed; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column;
@@ -201,4 +223,10 @@ button.ghost:hover:not(:disabled) { background: var(--panel-2); }
   .timebar-row { flex-wrap: wrap; }
   .track { flex-basis: 100%; order: -1; }
   .fileinfo { border-left: 0; padding-left: 0; }
+}
+
+/* Avisos de interpretación del archivo */
+.notice {
+  background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd;
+  padding: 8px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 12.5px; line-height: 1.5;
 }

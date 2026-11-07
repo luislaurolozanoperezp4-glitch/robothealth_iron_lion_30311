@@ -18,7 +18,6 @@ export function FileDrop({ onFile, onSample, compact }: Props) {
     <input
       ref={inputRef}
       type="file"
-      accept=".csv,text/csv"
       hidden
       onChange={(e) => {
         const f = e.target.files?.[0];
@@ -32,7 +31,7 @@ export function FileDrop({ onFile, onSample, compact }: Props) {
     return (
       <>
         {input}
-        <button className="primary" onClick={() => inputRef.current?.click()}>Cargar CSV</button>
+        <button className="primary" onClick={() => inputRef.current?.click()}>Load file</button>
       </>
     );
   }
@@ -54,12 +53,12 @@ export function FileDrop({ onFile, onSample, compact }: Props) {
         <path d="M12 16V4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
       </svg>
-      <h2>Arrastra aquí un CSV de telemetría</h2>
-      <p className="muted">Columnas esperadas: time_s, battery_volts, fl_rpm, fl_current_a, fl_current_rate_aps, …</p>
-      <button className="primary" onClick={() => inputRef.current?.click()}>Elegir archivo</button>
+      <h2>Drag a telemetry file here</h2>
+      <p className="muted">CSV, TSV, TXT, LOG, JSON, Excel (.xlsx), ZIP or .gz · Expected columns: time_s, battery_volts, fl_rpm, fl_current_a, fl_current_rate_aps, …</p>
+      <button className="primary" onClick={() => inputRef.current?.click()}>Choose file</button>
       {SAMPLE_FILES.length > 0 && (
         <div className="samples">
-          <span className="muted">o prueba un ejemplo:</span>
+          <span className="muted">or try an example:</span>
           {SAMPLE_FILES.map((s) => (
             <button key={s.name} className="ghost" onClick={() => onSample(s.name, s.url)}>{s.name}</button>
           ))}

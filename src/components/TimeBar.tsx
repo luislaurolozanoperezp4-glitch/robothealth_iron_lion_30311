@@ -6,12 +6,13 @@ interface Props {
   tlm: Telemetry;
   range: TimeRange;
   onChange: (r: TimeRange) => void;
+  iron?: boolean;
 }
 
 type DragMode = 'start' | 'end' | 'move';
 
 /** Barra de tiempo con dos manijas; la ventana seleccionada también se puede arrastrar. */
-export function TimeBar({ tlm, range, onChange }: Props) {
+export function TimeBar({ tlm, range, onChange, iron }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ mode: DragMode; x0: number; r0: TimeRange } | null>(null);
@@ -104,7 +105,7 @@ export function TimeBar({ tlm, range, onChange }: Props) {
         if (v[i] < mins[c]) mins[c] = v[i];
         if (v[i] > maxs[c]) maxs[c] = v[i];
       }
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.55)';
+      ctx.strokeStyle = iron ? 'rgba(255, 85, 0, 0.6)' : 'rgba(34, 197, 94, 0.55)';
       ctx.lineWidth = 1 * dpr;
       ctx.beginPath();
       for (let c = 0; c < cols; c++) {
@@ -125,14 +126,14 @@ export function TimeBar({ tlm, range, onChange }: Props) {
     const ro = new ResizeObserver(draw);
     ro.observe(track);
     return () => ro.disconnect();
-  }, [tlm, tMin, total]);
+  }, [tlm, tMin, total, iron]);
 
   const full = range[0] <= tMin && range[1] >= tMax;
 
   return (
     <div className="timebar">
       <div className="timebar-row">
-        <NumField label="Inicio" value={range[0]} onCommit={(t) => onChange(clamp([t, range[1]], 'start'))} />
+        <NumField label="Start" value={range[0]} onCommit={(t) => onChange(clamp([t, range[1]], 'start'))} />
         <div
           className="track"
           ref={trackRef}
@@ -150,8 +151,8 @@ export function TimeBar({ tlm, range, onChange }: Props) {
             onPointerDown={begin('move')}
             tabIndex={0}
             role="slider"
-            aria-label="Ventana de tiempo"
-            aria-valuetext={`${formatTime(range[0])} a ${formatTime(range[1])}`}
+            aria-label="Time window"
+            aria-valuetext={`${formatTime(range[0])} to ${formatTime(range[1])}`}
             onKeyDown={onKey('move')}
           />
           {(['start', 'end'] as const).map((mode) => (
@@ -162,7 +163,7 @@ export function TimeBar({ tlm, range, onChange }: Props) {
               onPointerDown={begin(mode)}
               tabIndex={0}
               role="slider"
-              aria-label={mode === 'start' ? 'Inicio' : 'Fin'}
+              aria-label={mode === 'start' ? 'Start' : 'End'}
               aria-valuemin={tMin}
               aria-valuemax={tMax}
               aria-valuenow={mode === 'start' ? range[0] : range[1]}
@@ -172,14 +173,14 @@ export function TimeBar({ tlm, range, onChange }: Props) {
             </div>
           ))}
         </div>
-        <NumField label="Fin" value={range[1]} onCommit={(t) => onChange(clamp([range[0], t], 'end'))} />
-        <button className="ghost" disabled={full} onClick={() => onChange([tMin, tMax])} title="Mostrar todo el archivo">
-          Todo
+        <NumField label="End" value={range[1]} onCommit={(t) => onChange(clamp([range[0], t], 'end'))} />
+        <button className="ghost" disabled={full} onClick={() => onChange([tMin, tMax])} title="Show the whole file">
+          All
         </button>
       </div>
       <div className="timebar-foot muted">
-        Ventana: <strong>{formatTime(range[1] - range[0])}</strong> de {formatTime(total)} · Arrastra las manijas o la
-        ventana, o arrastra sobre cualquier gráfica para hacer zoom
+        Window: <strong>{formatTime(range[1] - range[0])}</strong> of {formatTime(total)} · Drag the handles or the
+        window, or drag over any chart to zoom
       </div>
     </div>
   );
