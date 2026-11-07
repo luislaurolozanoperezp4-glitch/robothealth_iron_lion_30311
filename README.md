@@ -15,7 +15,7 @@ Carga un CSV con el botón **Cargar CSV**, arrastrándolo a la página o con uno
 
 ### Funciones
 
-- **Batería**: gráfica superior con línea roja de límite de salud en **11.5 V**; el trazo se vuelve rojo debajo del límite y se muestran estadísticas del rango visible.
+- **Batería**: gráfica superior con línea roja de límite de salud en **9.5 V**; el trazo se vuelve rojo debajo del límite y se muestran estadísticas del rango visible.
 - **Carrusel** de motores (flechas o teclas ← →):
   1. Tren motriz: FL, FR, BL, BR
   2. Mecanismos: Shooter Pollen, Shooter Nectar, Intake
