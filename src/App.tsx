@@ -1,23 +1,25 @@
-import { useCallback, useDeferredValue, useEffect, useState } from 'react';
-import { ALL_MOTORS, CAROUSEL_PAGES, METRICS, type MetricId } from './lib/channels';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { METRICS, type MetricId } from './lib/channels';
+import { discoverLayout } from './lib/discover';
 import { formatTime, type Telemetry, type TimeRange } from './lib/data';
 import { loadTelemetryFile } from './lib/formats';
 import { BatteryChart } from './components/BatteryChart';
 import { MotorChart } from './components/MotorChart';
+import { GroupChart } from './components/GroupChart';
 import { OverviewChart, type OverviewState } from './components/OverviewChart';
 import { TimeBar } from './components/TimeBar';
 import { Modal } from './components/Modal';
 import { FileDrop } from './components/FileDrop';
 
 const ALL_METRICS = METRICS.map((m) => m.id);
-const initialMetrics = () => Object.fromEntries(ALL_MOTORS.map((m) => [m.id, [...ALL_METRICS]])) as Record<string, MetricId[]>;
 
 export default function App() {
   const [tlm, setTlm] = useState<Telemetry | null>(null);
   const [range, setRange] = useState<TimeRange>([0, 1]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [metrics, setMetrics] = useState(initialMetrics);
+  const [metrics, setMetrics] = useState<Record<string, MetricId[]>>({});
+  const [groupHidden, setGroupHidden] = useState<Record<string, string[]>>({});
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null); // 'battery' o id de motor
   const [overviewOpen, setOverviewOpen] = useState(false);
@@ -27,10 +29,11 @@ export default function App() {
     document.documentElement.classList.toggle('theme-iron', iron);
     return () => document.documentElement.classList.remove('theme-iron');
   }, [iron]);
-  const [overview, setOverview] = useState<OverviewState>({
-    groups: ['battery', ...ALL_MOTORS.map((m) => m.id)],
-    metrics: [...ALL_METRICS],
-  });
+  const [overview, setOverview] = useState<OverviewState>({ hidden: [], metrics: [...ALL_METRICS] });
+
+  // Qué graficar según las columnas del archivo (motores conocidos, nuevos y otros datos).
+  const layout = useMemo(() => (tlm ? discoverLayout(tlm) : null), [tlm]);
+  const pages = layout?.pages ?? [];
 
   // Las gráficas usan el rango diferido para que la barra de tiempo se sienta fluida con archivos grandes.
   const chartRange = useDeferredValue(range);
@@ -43,6 +46,7 @@ export default function App() {
       setTlm(t);
       setRange([t.tMin, t.tMax]);
       setExpanded(null);
+      setPage(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -54,8 +58,15 @@ export default function App() {
 
   const toggleMetric = (motorId: string, m: MetricId) =>
     setMetrics((prev) => {
-      const cur = prev[motorId];
+      const cur = prev[motorId] ?? ALL_METRICS;
       return { ...prev, [motorId]: cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m] };
+    });
+
+  const enabledFor = (motorId: string) => metrics[motorId] ?? ALL_METRICS;
+  const toggleGroupCol = (groupId: string, col: string) =>
+    setGroupHidden((prev) => {
+      const cur = prev[groupId] ?? [];
+      return { ...prev, [groupId]: cur.includes(col) ? cur.filter((x) => x !== col) : [...cur, col] };
     });
 
   const selectRange = useCallback((r: TimeRange) => setRange(r), []);
@@ -63,7 +74,7 @@ export default function App() {
   // Atajos: A = vista general, Esc = cerrar, ← → = carrusel.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
+      const t = e.target instanceof Element ? e.target : document.body;
       if (t.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'i' || e.key === 'I') {
@@ -84,16 +95,18 @@ export default function App() {
         return;
       }
       if (!expanded && !overviewOpen && !t.closest('[role="slider"]')) {
-        if (e.key === 'ArrowRight') setPage((p) => Math.min(CAROUSEL_PAGES.length - 1, p + 1));
+        if (e.key === 'ArrowRight') setPage((p) => Math.min(pages.length - 1, p + 1));
         if (e.key === 'ArrowLeft') setPage((p) => Math.max(0, p - 1));
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [tlm, expanded, overviewOpen]);
+  }, [tlm, expanded, overviewOpen, pages.length]);
 
   const timebar = tlm && <TimeBar tlm={tlm} range={range} onChange={setRange} iron={iron} />;
-  const expandedMotor = ALL_MOTORS.find((m) => m.id === expanded);
+  const expandedMotor = layout?.motors.find((m) => m.id === expanded);
+  const expandedGroup = layout?.groups.find((g) => g.id === expanded);
+  const curPage = Math.min(page, Math.max(0, pages.length - 1));
 
   return (
     <div className="app">
@@ -137,46 +150,67 @@ export default function App() {
         </div>
       )}
 
-      {!tlm ? (
+      {!tlm || !layout ? (
         <FileDrop onFile={onFile} />
       ) : (
         <main className="dashboard">
-          <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} onExpand={() => setExpanded('battery')} iron={iron} />
+          {layout.hasBattery && (
+            <BatteryChart tlm={tlm} range={chartRange} onSelectRange={selectRange} onExpand={() => setExpanded('battery')} iron={iron} />
+          )}
 
-          <section className="carousel">
-            <div className="carousel-head">
-              <button className="arrow" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Previous">‹</button>
-              <div className="carousel-title">
-                <strong>{CAROUSEL_PAGES[page].title}</strong>
-                <div className="dots">
-                  {CAROUSEL_PAGES.map((p, i) => (
-                    <button key={p.title} className={`dot${i === page ? ' on' : ''}`} onClick={() => setPage(i)} aria-label={p.title} />
+          {pages.length > 0 ? (
+            <section className="carousel">
+              <div className="carousel-head">
+                <button className="arrow" disabled={curPage === 0} onClick={() => setPage(curPage - 1)} aria-label="Previous">‹</button>
+                <div className="carousel-title">
+                  <strong>{pages[curPage].title}</strong>
+                  <div className="dots">
+                    {pages.map((p, i) => (
+                      <button key={p.title} className={`dot${i === curPage ? ' on' : ''}`} onClick={() => setPage(i)} aria-label={p.title} />
+                    ))}
+                  </div>
+                </div>
+                <button className="arrow" disabled={curPage === pages.length - 1} onClick={() => setPage(curPage + 1)} aria-label="Next">›</button>
+              </div>
+              <div className="carousel-viewport">
+                <div className="carousel-track" style={{ transform: `translateX(-${curPage * 100}%)` }}>
+                  {pages.map((p, i) => (
+                    <div key={p.title} className={`slide n${p.items.length}`} aria-hidden={i !== curPage} inert={i !== curPage}>
+                      {p.items.map((item) =>
+                        item.kind === 'motor' ? (
+                          <MotorChart
+                            key={item.motor.id}
+                            tlm={tlm}
+                            motor={item.motor}
+                            enabled={enabledFor(item.motor.id)}
+                            onToggle={(m) => toggleMetric(item.motor.id, m)}
+                            range={chartRange}
+                            onSelectRange={selectRange}
+                            onExpand={() => setExpanded(item.motor.id)}
+                            iron={iron}
+                          />
+                        ) : (
+                          <GroupChart
+                            key={item.group.id}
+                            tlm={tlm}
+                            group={item.group}
+                            hidden={groupHidden[item.group.id] ?? []}
+                            onToggle={(c) => toggleGroupCol(item.group.id, c)}
+                            range={chartRange}
+                            onSelectRange={selectRange}
+                            onExpand={() => setExpanded(item.group.id)}
+                            iron={iron}
+                          />
+                        ),
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
-              <button className="arrow" disabled={page === CAROUSEL_PAGES.length - 1} onClick={() => setPage(page + 1)} aria-label="Next">›</button>
-            </div>
-            <div className="carousel-viewport">
-              <div className="carousel-track" style={{ transform: `translateX(-${page * 100}%)` }}>
-                {CAROUSEL_PAGES.map((p, i) => (
-                  <div key={p.title} className={`slide n${p.motors.length}`} aria-hidden={i !== page} inert={i !== page}>
-                    {p.motors.map((motor) => (
-                      <MotorChart
-                        key={motor.id}
-                        tlm={tlm}
-                        motor={motor}
-                        enabled={metrics[motor.id]}
-                        onToggle={(m) => toggleMetric(motor.id, m)}
-                        range={chartRange}
-                        onSelectRange={selectRange}
-                        onExpand={() => setExpanded(motor.id)}
-                        iron={iron}                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+            </section>
+          ) : (
+            !layout.hasBattery && <div className="error">The file has a time column but no other numeric columns to plot.</div>
+          )}
 
           <div className="timebar-dock">{timebar}</div>
           <p className="hint muted">
@@ -195,7 +229,7 @@ export default function App() {
           <MotorChart
             tlm={tlm}
             motor={expandedMotor}
-            enabled={metrics[expandedMotor.id]}
+            enabled={enabledFor(expandedMotor.id)}
             onToggle={(m) => toggleMetric(expandedMotor.id, m)}
             range={chartRange}
             onSelectRange={selectRange}
@@ -203,9 +237,23 @@ export default function App() {
             iron={iron}          />
         </Modal>
       )}
-      {tlm && overviewOpen && !expanded && (
+      {tlm && expandedGroup && (
+        <Modal label={expandedGroup.label} onClose={() => setExpanded(null)} footer={timebar}>
+          <GroupChart
+            tlm={tlm}
+            group={expandedGroup}
+            hidden={groupHidden[expandedGroup.id] ?? []}
+            onToggle={(c) => toggleGroupCol(expandedGroup.id, c)}
+            range={chartRange}
+            onSelectRange={selectRange}
+            expanded
+            iron={iron}
+          />
+        </Modal>
+      )}
+      {tlm && layout && overviewOpen && !expanded && (
         <Modal label="Overview" onClose={() => setOverviewOpen(false)} footer={timebar}>
-          <OverviewChart tlm={tlm} state={overview} onChange={setOverview} range={chartRange} onSelectRange={selectRange} iron={iron} />
+          <OverviewChart tlm={tlm} layout={layout} state={overview} onChange={setOverview} range={chartRange} onSelectRange={selectRange} iron={iron} />
         </Modal>
       )}
     </div>

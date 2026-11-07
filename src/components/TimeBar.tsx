@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent, type KeyboardEvent as RKeyboardEvent } from 'react';
-import { BATTERY_COLUMN, BATTERY_LIMIT_V } from '../lib/channels';
+import { BATTERY_COLUMN, BATTERY_LIMIT_V, TIME_COLUMN } from '../lib/channels';
 import { formatTime, type Telemetry, type TimeRange } from '../lib/data';
 
 interface Props {
@@ -90,9 +90,11 @@ export function TimeBar({ tlm, range, onChange, iron }: Props) {
       canvas.height = Math.max(1, Math.floor(h * dpr));
       const ctx = canvas.getContext('2d')!;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const v = tlm.cols[BATTERY_COLUMN];
+      // Mini gráfica: batería si existe; si no, la primera columna del archivo.
+      const isBattery = BATTERY_COLUMN in tlm.cols;
+      const v = isBattery ? tlm.cols[BATTERY_COLUMN] : Object.entries(tlm.cols).find(([k]) => k !== TIME_COLUMN)?.[1];
       if (!v || tlm.rows < 2) return;
-      let lo = BATTERY_LIMIT_V, hi = BATTERY_LIMIT_V;
+      let lo = isBattery ? BATTERY_LIMIT_V : Infinity, hi = isBattery ? BATTERY_LIMIT_V : -Infinity;
       for (let i = 0; i < v.length; i++) { if (v[i] < lo) lo = v[i]; if (v[i] > hi) hi = v[i]; }
       const pad = (hi - lo) * 0.1 || 0.1;
       lo -= pad; hi += pad;
@@ -114,6 +116,7 @@ export function TimeBar({ tlm, range, onChange, iron }: Props) {
         ctx.lineTo(c + 0.5, yOf(mins[c]) + 0.5);
       }
       ctx.stroke();
+      if (!isBattery) return;
       const y = yOf(BATTERY_LIMIT_V);
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
       ctx.setLineDash([4 * dpr, 3 * dpr]);

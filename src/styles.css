@@ -128,6 +128,8 @@ button.ghost:hover:not(:disabled) { background: var(--panel-2); }
 .slide { flex: 0 0 100%; min-width: 0; display: grid; gap: 12px; height: 600px; }
 .slide.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .slide.n3 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr; }
+.slide.n2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.slide.n1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 
 /* Barra de tiempo */
 .timebar-dock {
@@ -217,7 +219,7 @@ button.ghost:hover:not(:disabled) { background: var(--panel-2); }
 @media (max-width: 900px) {
   .app { padding: 10px 12px 20px; }
   .slide { height: auto; }
-  .slide.n4, .slide.n3 { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 300px; }
+  .slide.n4, .slide.n3, .slide.n2, .slide.n1 { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: 300px; }
   .stats { gap: 12px; }
   .timebar-row { flex-wrap: wrap; }
   .track { flex-basis: 100%; order: -1; }

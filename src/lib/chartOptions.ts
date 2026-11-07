@@ -1,6 +1,7 @@
 // Piezas compartidas de configuración de uPlot (tema oscuro, ejes por unidad, línea de límite).
 import type uPlot from 'uplot';
 import { BATTERY_LIMIT_V, LIMIT_COLOR, type RpmTarget } from './channels';
+import { formatAxisTime } from './data';
 
 const AXIS_TEXT = '#94a3b8';
 const GRID = 'rgba(148, 163, 184, 0.10)';
@@ -16,7 +17,10 @@ export function xAxis(): uPlot.Axis {
     font: FONT,
     grid: { stroke: GRID, width: 1 },
     ticks: { stroke: TICKS, width: 1, size: 4 },
-    values: (_u, vals) => vals.map((v) => `${+v.toFixed(3)} s`),
+    values: (_u, vals) => {
+      const span = vals.length > 1 ? vals[vals.length - 1] - vals[0] : 0;
+      return vals.map((v) => formatAxisTime(v, span));
+    },
   };
 }
 

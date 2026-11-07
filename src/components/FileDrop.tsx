@@ -51,7 +51,6 @@ export function FileDrop({ onFile, compact }: Props) {
         <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
       </svg>
       <h2>Drag a telemetry file here</h2>
-      <p className="muted">CSV, TSV, TXT, LOG, JSON, Excel (.xlsx), ZIP or .gz · Expected columns: time_s, battery_volts, fl_rpm, fl_current_a, fl_current_rate_aps, …</p>
       <button className="primary" onClick={() => inputRef.current?.click()}>Choose file</button>
     </div>
   );

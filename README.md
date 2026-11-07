@@ -46,4 +46,13 @@ time_s,battery_volts,fl_rpm,fl_current_a,fl_current_rate_aps,fr_...,bl_...,br_..
 - Si falta una columna, su botón aparece deshabilitado. Celdas vacías o no numéricas toman el valor anterior; columnas de texto se ignoran.
 - Un aviso azul arriba de las gráficas explica cualquier interpretación automática.
 
+### Cualquier dato
+
+La app grafica cualquier columna numérica, no solo las del robot:
+
+- **Motores nuevos**: columnas `<nombre>_rpm`, `<nombre>_current_a`, `<nombre>_current_rate_aps` (p. ej. `climber_rpm`) se vuelven un motor con sus botones RPM / A / A/s, en la página **More motors** del carrusel.
+- **Otros datos**: el resto de columnas se agrupa por la primera palabra del nombre (`gyro_yaw` + `gyro_pitch` → tarjeta **Gyro**) en la página **Other data**, con un botón por columna. Las columnas de magnitud parecida comparten eje; las demás tienen el suyo.
+- Las tarjetas sin datos se ocultan (p. ej. sin batería no aparece la gráfica de batería), y todo aparece también en la vista general (**A**).
+- Columnas de texto se ignoran.
+
 Para generar un CSV grande de prueba: `npm run sample -- 100000 big.csv`.

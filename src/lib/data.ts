@@ -123,7 +123,7 @@ export function tableToTelemetry(table: RawTable, fileName: string): Telemetry {
     return k ? `${name}_${k + 1}` : name;
   });
   if (!header.includes(BATTERY_COLUMN)) {
-    const alt = header.findIndex((h) => h.startsWith('battery') || h.startsWith('bateria'));
+    const alt = header.findIndex((h) => /^(battery|bateria)/.test(h) && /(volt|_v$)/.test(h));
     if (alt >= 0) header[alt] = BATTERY_COLUMN;
   }
   const nCols = header.length;
@@ -133,11 +133,11 @@ export function tableToTelemetry(table: RawTable, fileName: string): Telemetry {
   let timeFactor = 1;
   if (timeIdx < 0) {
     timeIdx = header.findIndex((h) => h in TIME_ALIASES);
-    if (timeIdx < 0) timeIdx = header.findIndex((h) => /^(time|timestamp|tiempo|elapsed)/.test(h));
+    if (timeIdx < 0) timeIdx = header.findIndex((h) => /^(time|timestamp|tiempo|elapsed|date|datetime|fecha|hora|hour|clock)/.test(h));
     if (timeIdx >= 0) {
       const h = header[timeIdx];
       timeFactor = TIME_ALIASES[h] ?? (/(_ms|millis)/.test(h) ? 1e-3 : /(_us|micros)/.test(h) ? 1e-6 : 1);
-    } else if (nCols > 1 && !STANDARD_COLUMNS.includes(header[0]) && isMonotonic(table, start, 0, num)) {
+    } else if (nCols > 1 && !STANDARD_COLUMNS.includes(header[0]) && (isMonotonic(table, start, 0, num) || isClockOrDate(table, start, 0, num))) {
       timeIdx = 0;
     }
   }
@@ -226,14 +226,20 @@ export function tableToTelemetry(table: RawTable, fileName: string): Telemetry {
   }
   cols[TIME_COLUMN] = timeArr;
 
-  const known = Object.keys(cols).filter((k) => k !== TIME_COLUMN && STANDARD_COLUMNS.includes(k)).length;
-  if (known === 0) {
-    throw new Error(
-      `None of the expected columns were found (${BATTERY_COLUMN}, fl_rpm, fl_current_a, …). Columns in file: ${header.slice(0, 12).join(', ')}${header.length > 12 ? '…' : ''}`,
-    );
+  if (Object.keys(cols).length === 1) {
+    throw new Error(`No numeric columns to plot besides time. Columns in file: ${header.slice(0, 12).join(', ')}${header.length > 12 ? '…' : ''}`);
   }
 
   return { fileName, rows: n, time: timeArr, cols, tMin: timeArr[0], tMax: timeArr[n - 1], notes };
+}
+
+function isClockOrDate(table: RawTable, start: number, col: number, num: (v: unknown) => number): boolean {
+  for (let r = start; r < Math.min(table.rowCount, start + 20); r++) {
+    const v = table.row(r)[col];
+    if (v == null || v === '') continue;
+    return !Number.isFinite(num(v)) && Number.isFinite(parseClockOrDate(v));
+  }
+  return false;
 }
 
 function isMonotonic(table: RawTable, start: number, col: number, num: (v: unknown) => number): boolean {
@@ -319,8 +325,21 @@ export function buildAligned(tlm: Telemetry, columns: string[], range: TimeRange
 
 export function formatTime(t: number): string {
   if (!Number.isFinite(t)) return '—';
-  if (Math.abs(t) < 60) return `${t.toFixed(2)} s`;
-  const m = Math.floor(t / 60);
-  const s = t - m * 60;
-  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+  const sign = t < 0 ? '-' : '';
+  const a = Math.abs(t);
+  const pad = (n: number) => String(Math.floor(n)).padStart(2, '0');
+  if (a < 60) return `${sign}${a.toFixed(2)} s`;
+  if (a < 3600) return `${sign}${Math.floor(a / 60)}:${(a % 60).toFixed(1).padStart(4, '0')}`;
+  if (a < 86400) return `${sign}${Math.floor(a / 3600)}:${pad((a % 3600) / 60)}:${pad(a % 60)}`;
+  return `${sign}${Math.floor(a / 86400)}d ${Math.floor((a % 86400) / 3600)}:${pad((a % 3600) / 60)}`;
+}
+
+/** Etiqueta del eje de tiempo según la duración visible. */
+export function formatAxisTime(v: number, span: number): string {
+  if (span < 120) return `${+v.toFixed(3)} s`;
+  const a = Math.abs(v);
+  const pad = (n: number) => String(Math.floor(n)).padStart(2, '0');
+  if (span < 2 * 3600) return `${Math.floor(a / 60)}:${pad(a % 60)}`;
+  if (span < 3 * 86400) return `${Math.floor(a / 3600)}:${pad((a % 3600) / 60)}`;
+  return `${Math.floor(a / 86400)}d ${Math.floor((a % 86400) / 3600)}h`;
 }

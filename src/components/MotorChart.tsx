@@ -81,7 +81,7 @@ export function MotorChart({ tlm, motor, enabled, onToggle, range, onSelectRange
               {showTargets ? 'Hide rate' : 'Show rate'}
             </button>
           )}
-          <span className="badge" style={{ background: iron ? IRON_MOTOR_COLORS[motor.id] : motor.color }} />
+          <span className="badge" style={{ background: (iron && IRON_MOTOR_COLORS[motor.id]) || motor.color }} />
           <strong>{motor.short}</strong>
           {motor.short !== motor.label && <span className="muted">{motor.label}</span>}
         </div>
@@ -96,7 +96,7 @@ export function MotorChart({ tlm, motor, enabled, onToggle, range, onSelectRange
                 style={{ '--c': iron ? IRON_METRIC_COLORS[m.id] : m.color } as CSSProperties}
                 disabled={disabled}
                 aria-pressed={on}
-                title={disabled ? 'Column not found in the CSV' : `Show/hide ${m.unit}`}
+                title={disabled ? 'Column not found in the file' : `Show/hide ${m.unit}`}
                 onClick={() => onToggle(m.id)}
               >
                 {m.label}
