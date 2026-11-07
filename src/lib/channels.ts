@@ -52,7 +52,7 @@ export const CAROUSEL_PAGES: { title: string; motors: MotorDef[] }[] = [
 
 export const TIME_COLUMN = 'time_s';
 export const BATTERY_COLUMN = 'battery_volts';
-export const BATTERY_LIMIT_V = 9.5;
+export const BATTERY_LIMIT_V = 11;
 export const BATTERY_COLOR = '#22c55e';
 export const LIMIT_COLOR = '#ef4444';
 
